@@ -2,7 +2,7 @@
 
 Open any folder in the Windows Subsystem for Linux from VSCodium, or from any other VS Code build that does not ship Microsoft's Remote - WSL extension.
 
-WSL Remote is an independent, MIT-licensed implementation. It is not affiliated with Microsoft or with the `jeanp413.open-remote-wsl` extension, and the two must not be installed at the same time (both would try to resolve `wsl+` windows).
+WSL Remote is an independent, MIT-licensed implementation. It is not affiliated with Microsoft or with the `jeanp413.open-remote-wsl` extension. Do not install it next to that extension or next to Microsoft's `ms-vscode-remote.remote-wsl`: each of them resolves `wsl+` windows, and two resolvers for the same authority conflict.
 
 ## What it does
 
@@ -20,6 +20,13 @@ WSL Remote is an independent, MIT-licensed implementation. It is not affiliated 
 
 - Windows 10 21H1 or later, or Windows 11, with WSL 2.
 - `wget` or `curl` and `tar` inside the distribution (every mainstream distribution has them).
+
+## Installation
+
+- From the registry: search for **WSL Remote** in the Extensions view, or run `codium --install-extension n2ns.wsl-remote`. VSCodium installs from [Open VSX](https://open-vsx.org/extension/n2ns/wsl-remote); editors configured for the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=n2ns.wsl-remote) find the same extension there.
+- From a file: download `wsl-remote-<version>.vsix` from the [releases page](https://github.com/n2ns/wsl-remote/releases) and run `codium --install-extension wsl-remote-<version>.vsix`.
+
+Then enable the resolver API as described in the next section.
 
 ## Enabling the resolver API
 
