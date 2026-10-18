@@ -8,13 +8,14 @@ import type { Logger } from './common/logger.js';
 export const EXTENSION_ID = 'n2ns.wsl-remote';
 const DISMISSED_KEY = 'proposedApi.promptDismissed';
 
-/** Where the running editor reads its runtime arguments from. */
+/** Where the running editor reads its runtime arguments from. The extension runs on Windows only, so the
+ *  path is always built with Windows separators (also when the tests run on another platform). */
 export function argvJsonPath(dataFolderName: string, env: NodeJS.ProcessEnv = process.env, home: string = os.homedir()): string {
   const portable = env['VSCODE_PORTABLE'];
   if (portable && portable.length > 0) {
-    return path.join(portable, 'argv.json');
+    return path.win32.join(portable, 'argv.json');
   }
-  return path.join(home, dataFolderName, 'argv.json');
+  return path.win32.join(home, dataFolderName, 'argv.json');
 }
 
 export type ArgvEditResult = { changed: true; text: string } | { changed: false; reason: 'already-enabled' | 'invalid-json'; text: string };

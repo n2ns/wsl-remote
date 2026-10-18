@@ -235,7 +235,7 @@ stop_server() {
 PID_FILE="$DATA_DIR/.$WR_COMMIT.pid"
 echo "$SERVER_PID" > "$PID_FILE" || say "warn=cannot write $PID_FILE"
 
-# shellcheck disable=SC2329  # invoked through the traps below
+# shellcheck disable=SC2329,SC2317  # invoked through the traps below
 cleanup() {
   stop_server
   rm -f "$TOKEN_FILE"
