@@ -1,0 +1,32 @@
+name: Publish to Open VSX
+
+# Trusted publishing: open-vsx.org is registered with this repository, this workflow file name and the
+# "publish" environment, and issues a short-lived token for the OIDC id-token below. No OVSX_PAT secret
+# is used; one would take precedence over trusted publishing and must not be added.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish to open-vsx.org
+    runs-on: ubuntu-latest
+    environment: publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run package
+      - name: Publish the packaged vsix
+        run: npx ovsx publish "$(ls wsl-remote-*.vsix)" --trusted-publishing --skip-duplicate
