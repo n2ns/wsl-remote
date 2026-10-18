@@ -1,8 +1,14 @@
-name: Publish to Open VSX
+name: Publish
 
-# Trusted publishing: open-vsx.org is registered with this repository, this workflow file name and the
-# "publish" environment, and issues a short-lived token for the OIDC id-token below. No OVSX_PAT secret
-# is used; one would take precedence over trusted publishing and must not be added.
+# Runs when a GitHub release is published (or by hand). One build, then the same vsix goes to both
+# registries. Both publish jobs sit in the "publish" environment, which requires a reviewer's approval.
+#
+# Open VSX uses trusted publishing: open-vsx.org is registered with this repository, this workflow file
+# name and the "publish" environment, and issues a short-lived token for the OIDC id-token. No OVSX_PAT
+# must be set on that job; it would take precedence over trusted publishing.
+#
+# The Visual Studio Marketplace has no trusted publishing yet, so that job uses the organization secret
+# VSCE_PAT. The extension uses proposed APIs, which vsce refuses to publish unless they are allowed.
 on:
   release:
     types: [published]
@@ -12,13 +18,9 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    name: publish to open-vsx.org
+  build:
+    name: check and package
     runs-on: ubuntu-latest
-    environment: publish
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -28,5 +30,41 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run package
-      - name: Publish the packaged vsix
-        run: npx ovsx publish "$(ls wsl-remote-*.vsix)" --trusted-publishing --skip-duplicate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: '*.vsix'
+          retention-days: 7
+
+  publish-openvsx:
+    name: publish to open-vsx.org
+    runs-on: ubuntu-latest
+    needs: build
+    environment: publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+      - run: npx --yes ovsx@1.3.0 publish "$(ls wsl-remote-*.vsix)" --trusted-publishing --skip-duplicate
+
+  publish-marketplace:
+    name: publish to marketplace.visualstudio.com
+    runs-on: ubuntu-latest
+    needs: build
+    environment: publish
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+      - run: npx --yes @vscode/vsce@4.0.0 publish --packagePath "$(ls wsl-remote-*.vsix)" --allow-proposed-apis resolvers contribRemoteHelp contribViewsRemote --skip-duplicate
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
