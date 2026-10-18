@@ -1,0 +1,221 @@
+{
+  "name": "wsl-remote",
+  "displayName": "WSL Remote",
+  "description": "Open any folder in the Windows Subsystem for Linux (WSL) from VSCodium and other VS Code builds without a bundled WSL extension. Provides a server-env-setup hook.",
+  "version": "0.1.0",
+  "publisher": "n2ns",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/n2ns/wsl-remote.git"
+  },
+  "bugs": {
+    "url": "https://github.com/n2ns/wsl-remote/issues"
+  },
+  "icon": "resources/icon.png",
+  "engines": {
+    "vscode": "^1.135.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "remote development",
+    "remote",
+    "wsl",
+    "vscodium"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "enabledApiProposals": [
+    "resolvers",
+    "contribRemoteHelp",
+    "contribViewsRemote"
+  ],
+  "api": "none",
+  "activationEvents": [
+    "onStartupFinished",
+    "onResolveRemoteAuthority:wsl"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "WSL Remote",
+      "properties": {
+        "wsl-remote.serverDownloadUrlTemplate": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "markdownDescription": "Overrides where the server archive is downloaded from. Placeholders: `${quality}`, `${version}`, `${commit}`, `${os}` (linux or alpine), `${arch}` (x64, arm64, armhf), `${release}`. Empty uses the template from the editor's product.json, or VSCodium's GitHub releases."
+        },
+        "wsl-remote.connectHost": {
+          "type": "string",
+          "enum": ["auto", "localhost", "distroIp"],
+          "default": "auto",
+          "scope": "application",
+          "enumDescriptions": [
+            "Try localhost first; fall back to the distribution's IP address when WSL does not forward ports (localhostForwarding=false).",
+            "Always connect through localhost.",
+            "Always connect to the distribution's IP address and relay forwarded ports."
+          ],
+          "description": "How the editor reaches the server running inside WSL."
+        },
+        "wsl-remote.serverEnvSetup": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "markdownDescription": "Source `~/<server data folder>/server-env-setup` (for example `~/.vscodium-server/server-env-setup`) inside the distribution before the server starts, the same hook Microsoft's Remote - WSL uses. Environment variables exported there reach the extension host and every terminal."
+        },
+        "wsl-remote.extensionHostEnv": {
+          "type": "object",
+          "default": {},
+          "scope": "application",
+          "additionalProperties": {
+            "type": ["string", "null"]
+          },
+          "markdownDescription": "Environment variables set on the remote extension host for every WSL window of this editor (null removes a variable). Applied after `server-env-setup`."
+        },
+        "wsl-remote.defaultExtensions": {
+          "type": "array",
+          "default": [],
+          "scope": "application",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extension identifiers to install in the distribution when the server starts."
+        },
+        "wsl-remote.serverStartTimeout": {
+          "type": "number",
+          "default": 180,
+          "minimum": 30,
+          "scope": "application",
+          "description": "Seconds to wait for the server to be downloaded and listening before the connection is reported as failed."
+        },
+        "wsl-remote.installLockTimeout": {
+          "type": "number",
+          "default": 300,
+          "minimum": 10,
+          "scope": "application",
+          "description": "Seconds to wait when another window is already installing the same server version."
+        },
+        "wsl-remote.debug": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Trace the server setup script (set -x). Output goes to the WSL Remote log."
+        }
+      }
+    },
+    "views": {
+      "remote": [
+        {
+          "id": "wslRemoteTargets",
+          "name": "WSL Targets",
+          "group": "targets@1",
+          "when": "isWindows && !isWeb",
+          "remoteName": "wsl"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "wslRemoteTargets",
+        "when": "!wsl-remote.ready",
+        "contents": "WSL Remote needs the \"resolvers\" API enabled for it in argv.json.\n[Register WSL Remote](command:wsl-remote.enableProposedApi)"
+      }
+    ],
+    "commands": [
+      { "command": "wsl-remote.connect", "title": "Connect to WSL", "category": "WSL" },
+      { "command": "wsl-remote.connectInNewWindow", "title": "Connect to WSL in New Window", "category": "WSL" },
+      { "command": "wsl-remote.connectUsingDistro", "title": "Connect to WSL using Distro...", "category": "WSL" },
+      { "command": "wsl-remote.connectUsingDistroInNewWindow", "title": "Connect to WSL using Distro in New Window...", "category": "WSL" },
+      { "command": "wsl-remote.reopenInWsl", "title": "Reopen Folder in WSL", "category": "WSL" },
+      { "command": "wsl-remote.showLog", "title": "Show Log", "category": "WSL" },
+      { "command": "wsl-remote.enableProposedApi", "title": "Register WSL Remote in argv.json (enable-proposed-api)", "category": "WSL" },
+      { "command": "wsl-remote.explorer.refresh", "title": "Refresh", "icon": "$(refresh)" },
+      { "command": "wsl-remote.explorer.addDistro", "title": "Install a Distro", "icon": "$(plus)" },
+      { "command": "wsl-remote.explorer.openInNewWindow", "title": "Connect in New Window", "icon": "$(empty-window)" },
+      { "command": "wsl-remote.explorer.openInCurrentWindow", "title": "Connect in Current Window" },
+      { "command": "wsl-remote.explorer.openLocationInCurrentWindow", "title": "Open in Current Window" },
+      { "command": "wsl-remote.explorer.openLocationInNewWindow", "title": "Open in New Window", "icon": "$(folder-opened)" },
+      { "command": "wsl-remote.explorer.removeLocation", "title": "Remove From Recent List", "icon": "$(x)" },
+      { "command": "wsl-remote.explorer.setDefaultDistro", "title": "Set as Default Distro" },
+      { "command": "wsl-remote.explorer.deleteDistro", "title": "Unregister Distro..." }
+    ],
+    "resourceLabelFormatters": [
+      {
+        "scheme": "vscode-remote",
+        "authority": "wsl+*",
+        "formatting": {
+          "label": "${path}",
+          "separator": "/",
+          "tildify": true,
+          "workspaceSuffix": "WSL"
+        }
+      }
+    ],
+    "menus": {
+      "statusBar/remoteIndicator": [
+        { "command": "wsl-remote.connect", "when": "isWindows && !isWeb", "group": "remote_20_wsl_1general@1" },
+        { "command": "wsl-remote.connectUsingDistro", "when": "isWindows && !isWeb", "group": "remote_20_wsl_1general@2" },
+        { "command": "wsl-remote.reopenInWsl", "when": "isWindows && !isWeb && !remoteName && workspaceFolderCount > 0", "group": "remote_20_wsl_1general@3" },
+        { "command": "wsl-remote.showLog", "when": "remoteName =~ /^wsl$/", "group": "remote_20_wsl_1general@4" }
+      ],
+      "commandPalette": [
+        { "command": "wsl-remote.connect", "when": "isWindows && !isWeb" },
+        { "command": "wsl-remote.connectInNewWindow", "when": "isWindows && !isWeb" },
+        { "command": "wsl-remote.connectUsingDistro", "when": "isWindows && !isWeb" },
+        { "command": "wsl-remote.connectUsingDistroInNewWindow", "when": "isWindows && !isWeb" },
+        { "command": "wsl-remote.reopenInWsl", "when": "isWindows && !isWeb && !remoteName" },
+        { "command": "wsl-remote.enableProposedApi", "when": "isWindows && !isWeb" },
+        { "command": "wsl-remote.explorer.refresh", "when": "false" },
+        { "command": "wsl-remote.explorer.addDistro", "when": "false" },
+        { "command": "wsl-remote.explorer.openInNewWindow", "when": "false" },
+        { "command": "wsl-remote.explorer.openInCurrentWindow", "when": "false" },
+        { "command": "wsl-remote.explorer.openLocationInCurrentWindow", "when": "false" },
+        { "command": "wsl-remote.explorer.openLocationInNewWindow", "when": "false" },
+        { "command": "wsl-remote.explorer.removeLocation", "when": "false" },
+        { "command": "wsl-remote.explorer.setDefaultDistro", "when": "false" },
+        { "command": "wsl-remote.explorer.deleteDistro", "when": "false" }
+      ],
+      "view/title": [
+        { "command": "wsl-remote.explorer.addDistro", "when": "view == wslRemoteTargets", "group": "navigation" },
+        { "command": "wsl-remote.explorer.refresh", "when": "view == wslRemoteTargets", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "wsl-remote.explorer.openInNewWindow", "when": "view == wslRemoteTargets && viewItem =~ /^wsl-remote\\.distro/", "group": "inline@1" },
+        { "command": "wsl-remote.explorer.openInCurrentWindow", "when": "view == wslRemoteTargets && viewItem =~ /^wsl-remote\\.distro/", "group": "navigation@1" },
+        { "command": "wsl-remote.explorer.openInNewWindow", "when": "view == wslRemoteTargets && viewItem =~ /^wsl-remote\\.distro/", "group": "navigation@2" },
+        { "command": "wsl-remote.explorer.setDefaultDistro", "when": "view == wslRemoteTargets && viewItem == wsl-remote.distro", "group": "management@1" },
+        { "command": "wsl-remote.explorer.deleteDistro", "when": "view == wslRemoteTargets && viewItem =~ /^wsl-remote\\.distro/", "group": "management@2" },
+        { "command": "wsl-remote.explorer.openLocationInNewWindow", "when": "view == wslRemoteTargets && viewItem == wsl-remote.location", "group": "inline@1" },
+        { "command": "wsl-remote.explorer.removeLocation", "when": "view == wslRemoteTargets && viewItem == wsl-remote.location", "group": "inline@2" },
+        { "command": "wsl-remote.explorer.openLocationInCurrentWindow", "when": "view == wslRemoteTargets && viewItem == wsl-remote.location", "group": "navigation@1" },
+        { "command": "wsl-remote.explorer.openLocationInNewWindow", "when": "view == wslRemoteTargets && viewItem == wsl-remote.location", "group": "navigation@2" },
+        { "command": "wsl-remote.explorer.removeLocation", "when": "view == wslRemoteTargets && viewItem == wsl-remote.location", "group": "navigation@3" }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "node esbuild.mjs --tests && node --test \"out-test/**/*.test.js\"",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "vscode:prepublish": "npm run check && node esbuild.mjs --production",
+    "package": "vsce package --no-dependencies",
+    "shellcheck": "wsl.exe -d Ubuntu_26 -- shellcheck -s sh scripts/server-setup.sh scripts/wslCode.sh"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "@types/vscode": "1.134.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.13.0",
+    "jsonc-parser": "3.3.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2"
+  }
+}

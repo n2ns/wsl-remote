@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # VSCodium publishes about once a month; catch a changed server layout or download URL early.
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: typecheck, lint, test, package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: vsix
+          path: '*.vsix'
+
+  server-smoke:
+    name: start the latest VSCodium server with scripts/server-setup.sh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve the latest VSCodium release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(gh release view --repo VSCodium/vscodium --json tagName --jq .tagName)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "latest VSCodium release: $tag"
+      - name: Run shellcheck
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+          shellcheck scripts/server-setup.sh scripts/wslCode.sh
+      - name: Install and start the server, then close stdin
+        env:
+          WR_ID: ci
+          WR_COMMIT: '0000000000000000000000000000000000000000'
+          WR_QUALITY: stable
+          WR_VERSION: ${{ steps.release.outputs.tag }}
+          WR_RELEASE: ''
+          WR_SERVER_APP: codium-server
+          WR_DATA_DIR: .vscodium-server
+          WR_URL_TEMPLATE: 'https://github.com/VSCodium/vscodium/releases/download/${version}/vscodium-reh-${os}-${arch}-${version}.tar.gz'
+          WR_TOKEN: ci-smoke-token
+          WR_EXTENSIONS: ''
+          WR_ENV_SETUP: '1'
+          WR_LOCK_TIMEOUT: '60'
+        run: |
+          mkdir -p "$HOME/.vscodium-server"
+          printf 'export WR_SMOKE_HOOK=seen\n' > "$HOME/.vscodium-server/server-env-setup"
+          # stdin is the keep-alive channel: the server runs until the pipe closes after 45 s
+          ( sleep 45 ) | timeout 600 sh scripts/server-setup.sh > server.log 2>&1 || true
+          cat server.log
+          grep -q 'WR\[ci\] envSetup=found' server.log
+          grep -q 'WR\[ci\] install=done' server.log
+          grep -q 'Extension host agent listening on [0-9]' server.log
+          grep -q 'WR\[ci\] exit=server' server.log
+          test -x "$HOME/.vscodium-server/bin/$WR_COMMIT/bin/codium-server"
+          # the token and pid files are removed again when the server stops
+          test -z "$(ls "$HOME"/.vscodium-server/.wsl-remote-*.token 2>/dev/null)"
+          test ! -e "$HOME/.vscodium-server/.$WR_COMMIT.pid"
+          # nothing of the server (node, pty host) outlives the script
+          test -z "$(pgrep -f "$HOME/.vscodium-server/bin/" || true)"
+      - name: Second run reuses the installation
+        env:
+          WR_ID: ci2
+          WR_COMMIT: '0000000000000000000000000000000000000000'
+          WR_QUALITY: stable
+          WR_VERSION: ${{ steps.release.outputs.tag }}
+          WR_RELEASE: ''
+          WR_SERVER_APP: codium-server
+          WR_DATA_DIR: .vscodium-server
+          WR_URL_TEMPLATE: 'https://github.com/VSCodium/vscodium/releases/download/${version}/vscodium-reh-${os}-${arch}-${version}.tar.gz'
+          WR_TOKEN: ci-smoke-token-2
+        run: |
+          ( sleep 20 ) | timeout 300 sh scripts/server-setup.sh > server2.log 2>&1 || true
+          cat server2.log
+          grep -q 'WR\[ci2\] install=present' server2.log
+          grep -q 'Extension host agent listening on [0-9]' server2.log
