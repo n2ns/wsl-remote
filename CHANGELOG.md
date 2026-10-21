@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.2 (2026-10-21)
 
 - The fallback to the distribution's IP address now works: the server listens on all interfaces when the editor may connect through that address (`connectHost` `distroIp`, or `auto` in NAT mode) and stays on loopback in mirrored mode.
 - An incomplete server directory left by an interrupted installation is replaced instead of failing every connection.
