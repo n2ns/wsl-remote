@@ -1,7 +1,7 @@
 name: Publish
 
 # Runs when a GitHub release is published (or by hand). One build, then the same vsix goes to both
-# registries. Both publish jobs sit in the "publish" environment, which requires a reviewer's approval.
+# registries. Both publish jobs sit in the "publish" environment, which only admits main and v* tags.
 #
 # Open VSX uses trusted publishing: open-vsx.org is registered with this repository, this workflow file
 # name and the "publish" environment, and issues a short-lived token for the OIDC id-token. No OVSX_PAT
