@@ -18,6 +18,7 @@
 #   WR_ENV_SETUP       1 = source $HOME/$WR_DATA_DIR/server-env-setup before anything else
 #   WR_DEBUG           1 = trace the script
 #   WR_LOCK_TIMEOUT    seconds to wait for another window's installation (default 300)
+#   WR_CONNECT_HOST    auto | localhost | distroIp: how the editor reaches the server (default auto)
 #
 # Status lines have the form `WR[<id>] key=value` and are the only lines the extension parses,
 # besides the server's own "Extension host agent listening on <port>".
@@ -42,8 +43,10 @@ SERVER_SCRIPT="$SERVER_DIR/bin/$WR_SERVER_APP"
 ENV_SETUP="$DATA_DIR/server-env-setup"
 
 say "distro=${WSL_DISTRO_NAME:-unknown} kernel=$(uname -r 2>/dev/null) user=$(id -un 2>/dev/null)"
+NETWORKING=
 if [ -x /usr/bin/wslinfo ]; then
-  say "networking=$(/usr/bin/wslinfo --networking-mode 2>/dev/null)"
+  NETWORKING="$(/usr/bin/wslinfo --networking-mode 2>/dev/null)"
+  say "networking=$NETWORKING"
 fi
 
 # ---- environment hook (same file name and timing as Microsoft's Remote - WSL) ----------------
@@ -172,6 +175,15 @@ install_server() {
       fail "this distribution does not meet the server's requirements (glibc/libstdc++ too old)"
     fi
   fi
+  # mv into an existing directory would nest the new server inside it; a complete one is kept, a partial one
+  # (an interrupted installation of another extension with the same layout) is replaced. We hold the lock.
+  if [ -x "$SERVER_SCRIPT" ]; then
+    rm -rf "$tmpdir"
+    say "install=skipped reason=already-present"
+    rm -rf "$LOCK_DIR"; trap - EXIT
+    return 0
+  fi
+  [ -e "$SERVER_DIR" ] && { rm -rf "$SERVER_DIR" || fail "cannot remove incomplete $SERVER_DIR"; }
   if ! mv "$tmpdir" "$SERVER_DIR" 2>/dev/null; then
     # Lost a race we could not see (lock dir removed by hand); keep whatever is there if it is complete.
     if [ -x "$SERVER_SCRIPT" ]; then
@@ -196,17 +208,32 @@ fi
 find "$BIN_DIR" -maxdepth 1 \( -name '*-*.tmp' -o -name '*-*.tar.gz' \) -mmin +120 -exec rm -rf {} + 2>/dev/null
 
 # ---- connection token --------------------------------------------------------------------------
-umask 077
 TOKEN_FILE="$DATA_DIR/.wsl-remote-$WR_COMMIT-$$.token"
-printf '%s' "$WR_TOKEN" > "$TOKEN_FILE" || fail "cannot write $TOKEN_FILE"
+# umask only for the token: the server inherits this shell's umask for the files the user creates.
+(umask 077 && printf '%s' "$WR_TOKEN" > "$TOKEN_FILE") || fail "cannot write $TOKEN_FILE"
 find "$DATA_DIR" -maxdepth 1 -name '.wsl-remote-*.token' -mmin +1440 -delete 2>/dev/null
 
 # ---- start ---------------------------------------------------------------------------------------
 ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
 say "ip=${ip:-}"
+# The editor connects to the distribution's address when WSL does not forward localhost, which only reaches a
+# server listening on all interfaces. In NAT mode that address is private to this computer; in mirrored mode
+# (and WSL 1) all interfaces are the host's own, so the server stays on loopback there unless asked otherwise.
+case "${WR_CONNECT_HOST:-auto}" in
+  localhost) LISTEN_HOST=127.0.0.1 ;;
+  distroIp) LISTEN_HOST=0.0.0.0 ;;
+  *)
+    case "$NETWORKING:$(uname -r)" in
+      nat:*) LISTEN_HOST=0.0.0.0 ;;
+      :*-microsoft-standard*) LISTEN_HOST=0.0.0.0 ;; # WSL 2 before wslinfo existed only had NAT
+      *) LISTEN_HOST=127.0.0.1 ;;
+    esac
+    ;;
+esac
+say "listen=$LISTEN_HOST"
 
 # --start-server: without it, --install-extension would turn the run into a one-shot CLI call.
-set -- --start-server --host=127.0.0.1 --port=0 --connection-token-file "$TOKEN_FILE" \
+set -- --start-server --host="$LISTEN_HOST" --port=0 --connection-token-file "$TOKEN_FILE" \
   --telemetry-level off --use-host-proxy --accept-server-license-terms
 for ext in $WR_EXTENSIONS; do
   set -- "$@" --install-extension "$ext"
@@ -228,7 +255,7 @@ stop_server() {
   kill "$SERVER_PID" 2>/dev/null
   # Give the group a moment to go away, so nothing of it outlives this script.
   i=0
-  while [ "$i" -lt 25 ] && kill -0 -- "-$SERVER_PID" 2>/dev/null; do sleep 0.2; i=$((i + 1)); done
+  while [ "$i" -lt 25 ] && kill -0 "-$SERVER_PID" 2>/dev/null; do sleep 0.2; i=$((i + 1)); done
 }
 # Same pid file as the other WSL extensions write (<data dir>/.<commit>.pid, the launcher's pid, i.e. the
 # parent of the node server process), so tools that locate the server through it keep working.

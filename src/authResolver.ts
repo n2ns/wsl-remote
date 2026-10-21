@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { Logger } from './common/logger.js';
 import { getProductInfo } from './common/productInfo.js';
-import { distroFromAuthority } from './common/validate.js';
+import { distroFromAuthority, ValidationError } from './common/validate.js';
 import { getSettings } from './settings.js';
 import { ServerProcess, ServerStartError } from './server/serverProcess.js';
 import { canConnect, WslTunnel } from './server/tunnel.js';
@@ -56,6 +56,7 @@ export class WslAuthorityResolver implements vscode.RemoteAuthorityResolver, vsc
             debug: settings.debug,
             startTimeoutMs: settings.serverStartTimeoutSeconds * 1000,
             lockTimeoutSeconds: settings.installLockTimeoutSeconds,
+            connectHost: settings.connectHost,
           });
           this.server = server;
           server.onDidExit(() => {
@@ -72,7 +73,7 @@ export class WslAuthorityResolver implements vscode.RemoteAuthorityResolver, vsc
             void this.offerRetry(distro, error);
           }
           const message = error instanceof Error ? error.message : String(error);
-          if (error instanceof ServerStartError && !error.transient) {
+          if ((error instanceof ServerStartError && !error.transient) || error instanceof ValidationError) {
             throw vscode.RemoteAuthorityResolverError.NotAvailable(message, true);
           }
           throw vscode.RemoteAuthorityResolverError.TemporarilyNotAvailable(message);

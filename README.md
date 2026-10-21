@@ -10,7 +10,7 @@ WSL Remote is an independent, MIT-licensed implementation. It is not affiliated 
 - Downloads and starts the editor's own server (`codium-server` for VSCodium) inside the distribution. The archive is verified against the publisher's checksum when one is available, extracted atomically, and installations by several windows are serialized with a lock, so a crash or a second window never leaves a half-installed server behind.
 - Runs one server per window as a child of the editor. When the window closes or the editor dies, the server stops; nothing stays behind in the distribution.
 - Reconnects to the running server after a dropped connection instead of starting a new one.
-- Forwards ports. When WSL does not forward `localhost` (NAT mode with `localhostForwarding=false`), the connection and the forwarded ports go to the distribution's IP address instead.
+- Forwards ports. When WSL does not forward `localhost` (NAT mode with `localhostForwarding=false`), the connection and the forwarded ports go to the distribution's IP address instead. For that the server listens on all interfaces in NAT mode (that address is only reachable from this computer) and on loopback in mirrored mode; the connection token protects it either way.
 - Works on Alpine (`libstdc++` required), on distributions without `which` or with an unusual `PATH`, and with distribution names containing dots and dashes.
 - **`server-env-setup` hook.** Before the server starts, `~/.vscodium-server/server-env-setup` (more precisely `~/<serverDataFolderName>/server-env-setup`) is sourced inside the distribution, exactly like Microsoft's extension does with `~/.vscode-server/server-env-setup`. Variables exported there reach the remote extension host and every terminal. This is the mechanism tools such as plan-swap use to give each editor its own `CODEX_HOME`.
 - **Compatible server layout.** The server runs from `~/<serverDataFolderName>/bin/<commit>` with `--start-server`, and the launcher's pid is written to `~/<serverDataFolderName>/.<commit>.pid`, the same files Microsoft's and jeanp413's extensions use, so tools that locate or restart the server through them (plan-swap's automatic restart, for example) keep working.
@@ -60,7 +60,7 @@ Afterwards `codium .` in a plain WSL shell opens the folder in a WSL window. Ins
 | `wsl-remote.extensionHostEnv` | `{}` | Environment variables for the remote extension host; `null` removes one. |
 | `wsl-remote.defaultExtensions` | `[]` | Extensions to install in the distribution on first start. |
 | `wsl-remote.serverStartTimeout` | `180` | Seconds to wait for the server. |
-| `wsl-remote.installLockTimeout` | `300` | Seconds to wait for another window's installation. |
+| `wsl-remote.installLockTimeout` | `300` | Seconds to wait for another window's installation, added to the start timeout while waiting. |
 | `wsl-remote.debug` | `false` | Trace the setup script. |
 
 ## Troubleshooting

@@ -85,7 +85,7 @@ export async function reopenInWsl(wsl: WslManager, logger: Logger): Promise<void
 
 async function detectMountRoot(wsl: WslManager, distro: string, logger: Logger): Promise<string> {
   try {
-    const result = await wsl.exec(distro, 'sh', ['-c', 'r=$(sed -n "s/^[[:space:]]*root[[:space:]]*=[[:space:]]*//p" /etc/wsl.conf 2>/dev/null | tail -n 1 | tr -d "\\"\\x27 "); printf "%s" "${r:-/mnt/}"']);
+    const result = await wsl.exec(distro, 'sh', ['-c', 'r=$(sed -n "s/^[[:space:]]*root[[:space:]]*=[[:space:]]*//p" /etc/wsl.conf 2>/dev/null | tail -n 1 | tr -d "\\"\\047 "); printf "%s" "${r:-/mnt/}"']);
     const root = result.stdout.trim();
     if (result.exitCode === 0 && root.startsWith('/')) {
       return root.endsWith('/') ? root : `${root}/`;

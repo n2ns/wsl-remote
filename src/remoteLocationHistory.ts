@@ -7,41 +7,46 @@ const MAX_PER_DISTRO = 20;
 
 /** Recently opened folders and workspace files per distribution, shown in the Remote Explorer. */
 export class RemoteLocationHistory {
-  private history: Record<string, string[]>;
-
-  constructor(private readonly context: vscode.ExtensionContext) {
-    const stored = context.globalState.get<Record<string, string[]>>(STORAGE_KEY) ?? {};
-    this.history = {};
-    for (const [distro, paths] of Object.entries(stored)) {
-      if (isValidDistroName(distro) && Array.isArray(paths)) {
-        this.history[distro] = paths.filter((p): p is string => typeof p === 'string');
-      }
-    }
-  }
+  constructor(private readonly context: vscode.ExtensionContext) {}
 
   get(distro: string): readonly string[] {
-    return this.history[distro] ?? [];
+    return this.load()[distro] ?? [];
   }
 
   async add(distro: string, location: string): Promise<void> {
-    const list = (this.history[distro] ?? []).filter((item) => item !== location);
+    const history = this.load();
+    const list = (history[distro] ?? []).filter((item) => item !== location);
     list.unshift(location);
-    this.history[distro] = list.slice(0, MAX_PER_DISTRO);
-    await this.save();
+    history[distro] = list.slice(0, MAX_PER_DISTRO);
+    await this.save(history);
   }
 
   async remove(distro: string, location: string): Promise<void> {
-    this.history[distro] = (this.history[distro] ?? []).filter((item) => item !== location);
-    await this.save();
+    const history = this.load();
+    history[distro] = (history[distro] ?? []).filter((item) => item !== location);
+    await this.save(history);
   }
 
   async forgetDistro(distro: string): Promise<void> {
-    delete this.history[distro];
-    await this.save();
+    const history = this.load();
+    delete history[distro];
+    await this.save(history);
   }
 
-  private save(): Thenable<void> {
-    return this.context.globalState.update(STORAGE_KEY, this.history);
+  /** Read on every use: other windows update the same global state. */
+  private load(): Record<string, string[]> {
+    const stored = this.context.globalState.get<Record<string, string[]>>(STORAGE_KEY) ?? {};
+    const history: Record<string, string[]> = {};
+    for (const [distro, paths] of Object.entries(stored)) {
+      if (isValidDistroName(distro) && Array.isArray(paths)) {
+        history[distro] = paths.filter((p): p is string => typeof p === 'string');
+      }
+    }
+    return history;
+  }
+
+  private save(history: Record<string, string[]>): Thenable<void> {
+    return this.context.globalState.update(STORAGE_KEY, history);
   }
 }
 

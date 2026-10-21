@@ -49,7 +49,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await history.add(location.distro, location.path);
   }
 
-  const tree = new DistroTreeDataProvider(wsl, history, logger);
+  const tree = new DistroTreeDataProvider(wsl, history, logger, resolverRegistered);
   context.subscriptions.push(tree);
   context.subscriptions.push(vscode.window.createTreeView(VIEW_ID, { treeDataProvider: tree }));
 

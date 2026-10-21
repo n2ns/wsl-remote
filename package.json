@@ -55,9 +55,9 @@
           "default": "auto",
           "scope": "application",
           "enumDescriptions": [
-            "Try localhost first; fall back to the distribution's IP address when WSL does not forward ports (localhostForwarding=false).",
-            "Always connect through localhost.",
-            "Always connect to the distribution's IP address and relay forwarded ports."
+            "Try localhost first; fall back to the distribution's IP address when WSL does not forward ports (localhostForwarding=false). The server listens on all interfaces in NAT mode and on loopback otherwise.",
+            "Always connect through localhost. The server listens on loopback only.",
+            "Always connect to the distribution's IP address and relay forwarded ports. The server listens on all interfaces, which in mirrored mode includes the network the computer is on."
           ],
           "description": "How the editor reaches the server running inside WSL."
         },
@@ -97,7 +97,7 @@
           "default": 300,
           "minimum": 10,
           "scope": "application",
-          "description": "Seconds to wait when another window is already installing the same server version."
+          "description": "Seconds to wait when another window is already installing the same server version. This wait is added to wsl-remote.serverStartTimeout."
         },
         "wsl-remote.debug": {
           "type": "boolean",

@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import * as vscode from 'vscode';
-import { Deferred, withTimeout } from '../common/async.js';
+import { Deferred } from '../common/async.js';
 import type { Logger } from '../common/logger.js';
 import type { ProductInfo } from '../common/productInfo.js';
 import { validateDownloadUrlTemplate, validateExtensionId } from '../common/validate.js';
@@ -23,6 +23,7 @@ export interface ServerStartOptions {
   readonly debug: boolean;
   readonly startTimeoutMs: number;
   readonly lockTimeoutSeconds: number;
+  readonly connectHost: 'auto' | 'localhost' | 'distroIp';
 }
 
 export interface ServerInfo {
@@ -123,11 +124,13 @@ export class ServerProcess implements vscode.Disposable {
       WR_ENV_SETUP: options.sourceEnvSetup ? '1' : '0',
       WR_DEBUG: options.debug ? '1' : '0',
       WR_LOCK_TIMEOUT: String(options.lockTimeoutSeconds),
+      WR_CONNECT_HOST: options.connectHost,
     };
 
     // `head -c N` takes exactly the script from stdin; the rest of stdin stays open as the
-    // keep-alive channel the script watches. Nothing user-controlled is in this command line.
-    const bootstrap = `f=$(mktemp) && head -c ${script.length} > "$f" && exec sh "$f"`;
+    // keep-alive channel the script watches. Nothing user-controlled is in this command line, and
+    // the script never touches the disk.
+    const bootstrap = `exec sh -c "$(head -c ${script.length})" server-setup.sh`;
     logger.info(`Starting ${product.serverApplicationName} in ${options.distro} (commit ${product.commit.slice(0, 10)})`);
     const child = wsl.spawnLinux(options.distro, 'sh', ['-c', bootstrap], { env });
 
@@ -136,6 +139,17 @@ export class ServerProcess implements vscode.Disposable {
     const exited = new Deferred<number | null>();
     const recent: string[] = [];
     const markerPrefix = `WR[${id}] `;
+
+    // Waiting for another window's installation may take up to the lock timeout on top of the start timeout.
+    let timer: NodeJS.Timeout | undefined;
+    let deadline = Date.now();
+    let totalMs = 0;
+    const extendTimeout = (ms: number): void => {
+      clearTimeout(timer);
+      deadline += ms;
+      totalMs += ms;
+      timer = setTimeout(() => ready.reject(new ServerStartError(`Starting the server timed out after ${Math.round(totalMs / 1000)}s`, true)), deadline - Date.now());
+    };
 
     const handleLine = (line: string): void => {
       if (line.length === 0) {
@@ -150,6 +164,9 @@ export class ServerProcess implements vscode.Disposable {
         logger.info(`[${options.distro}] ${body}`);
         for (const match of body.matchAll(/(\w+)=(\S*)/g)) {
           status.set(match[1] ?? '', match[2] ?? '');
+        }
+        if (body.startsWith('lock=waiting') && !ready.isSettled) {
+          extendTimeout(options.lockTimeoutSeconds * 1000);
         }
         if (body.startsWith('error=')) {
           const message = body.slice('error='.length);
@@ -190,9 +207,10 @@ export class ServerProcess implements vscode.Disposable {
     });
     child.stdin.write(script);
 
+    extendTimeout(options.startTimeoutMs);
     let info: ServerInfo;
     try {
-      info = await withTimeout(ready.promise, options.startTimeoutMs, 'Starting the server');
+      info = await ready.promise.finally(() => clearTimeout(timer));
     } catch (error) {
       try {
         child.stdin.end();

@@ -21,5 +21,7 @@ export const workspace = {
   },
 };
 export const window = {};
-export const commands = {};
+export const commands = {
+  registerCommand: (): { dispose(): void } => ({ dispose: () => {} }),
+};
 export const Uri = {};

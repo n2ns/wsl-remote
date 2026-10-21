@@ -36,6 +36,8 @@ export class DistroTreeDataProvider extends DisposableStore implements vscode.Tr
     private readonly wsl: WslManager,
     private readonly history: RemoteLocationHistory,
     private readonly logger: Logger,
+    /** False while the resolver is not registered: the view stays empty so its welcome content offers the fix. */
+    private readonly ready: boolean,
   ) {
     super();
     const cmd = (id: string, handler: (...args: never[]) => unknown): void => {
@@ -91,6 +93,9 @@ export class DistroTreeDataProvider extends DisposableStore implements vscode.Tr
 
   async getChildren(node?: Node): Promise<Node[]> {
     if (!node) {
+      if (!this.ready) {
+        return [];
+      }
       try {
         const distros = await this.wsl.listDistros();
         return distros.map((distro) => new DistroNode(distro.name, distro.isDefault, distro.state, distro.version, this.history.get(distro.name)));
