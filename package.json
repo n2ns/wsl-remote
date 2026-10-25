@@ -4,7 +4,7 @@
   "description": "Open any folder in the Windows Subsystem for Linux (WSL) from VSCodium and other VS Code builds without a bundled WSL extension. Provides a server-env-setup hook.",
   "version": "0.0.2",
   "publisher": "n2ns",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/n2ns/wsl-remote.git"

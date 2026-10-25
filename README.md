@@ -2,7 +2,7 @@
 
 Open any folder in the Windows Subsystem for Linux from VSCodium, or from any other VS Code build that does not ship Microsoft's Remote - WSL extension.
 
-WSL Remote is an independent, MIT-licensed implementation. It is not affiliated with Microsoft or with the `jeanp413.open-remote-wsl` extension. Do not install it next to that extension or next to Microsoft's `ms-vscode-remote.remote-wsl`: each of them resolves `wsl+` windows, and two resolvers for the same authority conflict.
+WSL Remote is an independent, Apache-2.0-licensed implementation. It is not affiliated with Microsoft or with the `jeanp413.open-remote-wsl` extension. Do not install it next to that extension or next to Microsoft's `ms-vscode-remote.remote-wsl`: each of them resolves `wsl+` windows, and two resolvers for the same authority conflict.
 
 ## What it does
 
@@ -83,4 +83,7 @@ The unit tests run with Node's test runner and do not need the editor. Shell scr
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
+
+The proposed VS Code API declarations in `types/` retain their Microsoft copyright
+and [MIT license](LICENSES/vscode-MIT.txt).
