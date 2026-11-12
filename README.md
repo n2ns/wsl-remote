@@ -2,6 +2,12 @@
 
 Open any folder in the Windows Subsystem for Linux from VSCodium, or from any other VS Code build that does not ship Microsoft's Remote - WSL extension.
 
+[![Open VSX version](https://img.shields.io/open-vsx/v/n2ns/wsl-remote?label=open-vsx)](https://open-vsx.org/extension/n2ns/wsl-remote)
+[![VS Marketplace version](https://vsmarketplacebadges.dev/version/n2ns.wsl-remote.svg)](https://marketplace.visualstudio.com/items?itemName=n2ns.wsl-remote)
+[![Open VSX downloads](https://img.shields.io/open-vsx/dt/n2ns/wsl-remote)](https://open-vsx.org/extension/n2ns/wsl-remote)
+[![CI](https://img.shields.io/github/actions/workflow/status/n2ns/wsl-remote/ci.yml?branch=main&label=CI)](https://github.com/n2ns/wsl-remote/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/n2ns/wsl-remote)](https://github.com/n2ns/wsl-remote/blob/main/LICENSE)
+
 WSL Remote is an independent, Apache-2.0-licensed implementation. It is not affiliated with Microsoft or with the `jeanp413.open-remote-wsl` extension. Do not install it next to that extension or next to Microsoft's `ms-vscode-remote.remote-wsl`: each of them resolves `wsl+` windows, and two resolvers for the same authority conflict.
 
 ## What it does
